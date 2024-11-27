@@ -66,6 +66,8 @@ void Server::poll_incoming_messages() {
         
         Input::Reader input = get_input(data);
         handle_player_input(input, incoming_msg->m_conn);
+
+        incoming_msg->Release();
     }
 }
 
@@ -202,9 +204,9 @@ void Server::send_appstate_update() {
     send_data(msg);
 }
 
-void Server::send_data(const kj::ArrayPtr<const char> data) {
+void Server::send_data(const std::vector<uint8_t> &data) {
     for (auto it = clients.begin(); it != clients.end(); it++) {
-        auto err = networking_sockets->SendMessageToConnection(it->first, data.begin(), data.size(), k_nSteamNetworkingSend_Reliable, nullptr);
+        auto err = networking_sockets->SendMessageToConnection(it->first, data.data(), data.size(), k_nSteamNetworkingSend_Reliable, nullptr);
         assert(err == k_EResultOK);
         if (err != k_EResultOK)
             std::cerr << "Failed to send data, error code: " << err << std::endl;

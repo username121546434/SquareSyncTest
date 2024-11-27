@@ -36,7 +36,7 @@ public:
     void send_connect_event();
     void send_appstate_update();
 
-    void send_data(const kj::ArrayPtr<const char> data);
+    void send_data(const std::vector<uint8_t> &data);
     
     static void SteamNetConnectionStatusChangedCallback(SteamNetConnectionStatusChangedCallback_t *info) {
         instance->on_connection_status_changed(info);

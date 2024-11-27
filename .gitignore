@@ -1,0 +1,10 @@
+Build/
+.vs/
+*.dll
+*.bin
+ext/
+vcpkg_installed/
+*.vcxproj.filters
+*.vcxproj.user
+vcpkg-configuration.json
+*.aps

@@ -11,43 +11,41 @@
     return reader;
 }
 
-Square::Reader get_square(const std::vector<uint8_t> &data) {
-    auto reader = get_message_reader(data);
-    auto square = reader.getRoot<Square>();
+Square::Reader get_square(::capnp::FlatArrayMessageReader &msg) {
+    auto square = msg.getRoot<Square>();
     std::cout << square.getX() << " " << square.getY() << " "
         << square.getWidth() << " " << square.getHeight() << std::endl;
     return square;
 }
 
-Squares::Reader get_squares(const std::vector<uint8_t> &data) {
-    auto reader = get_message_reader(data);
-    auto squares = reader.getRoot<Squares>();
+Squares::Reader get_squares(::capnp::FlatArrayMessageReader &msg) {
+    auto squares = msg.getRoot<Squares>();
     return squares;
 }
 
-Input::Reader get_input(const std::vector<uint8_t> &data) {
-    auto reader = get_message_reader(data);
-    auto input = reader.getRoot<Input>();
+Input::Reader get_input(::capnp::FlatArrayMessageReader &msg) {
+    auto input = msg.getRoot<Input>();
     return input;
 }
 
-Event::Reader get_event(const std::vector<uint8_t> &data) {
-    auto reader = get_message_reader(data);
-    auto event = reader.getRoot<Event>();
+Event::Reader get_event(::capnp::FlatArrayMessageReader &msg) {
+    auto event = msg.getRoot<Event>();
     return event;
 }
 
-MessageToClient::Reader get_message_to_client(const std::vector<uint8_t> &data) {
-    auto reader = get_message_reader(data);
-    auto message_to_client = reader.getRoot<MessageToClient>();
+MessageToClient::Reader get_message_to_client(::capnp::FlatArrayMessageReader &msg) {
+    auto message_to_client = msg.getRoot<MessageToClient>();
     return message_to_client;
 }
 
-kj::ArrayPtr<const char> message_to_vector(::capnp::MallocMessageBuilder &msg) {
-    return msg.getSegmentsForOutput().asChars();
+std::vector<uint8_t> message_to_vector(::capnp::MallocMessageBuilder &msg) {
+    auto bytes {capnp::messageToFlatArray(msg).asBytes()};
+
+    std::vector<uint8_t> data(bytes.begin(), bytes.end());
+    return data;
 }
 
-kj::ArrayPtr<const char> create_square(::capnp::MallocMessageBuilder &msg, uint32_t x, uint32_t y, uint32_t h, uint32_t w) {
+std::vector<uint8_t> create_square(::capnp::MallocMessageBuilder &msg, uint32_t x, uint32_t y, uint32_t h, uint32_t w) {
     Square::Builder new_sq = msg.initRoot<Square>();
     new_sq.setX(x);
     new_sq.setY(y);
@@ -57,7 +55,7 @@ kj::ArrayPtr<const char> create_square(::capnp::MallocMessageBuilder &msg, uint3
     return message_to_vector(msg);
 }
 
-kj::ArrayPtr<const char> create_squares(::capnp::MallocMessageBuilder &msg, const std::vector<Square::Reader> &squares) {
+std::vector<uint8_t> create_squares(::capnp::MallocMessageBuilder &msg, const std::vector<Square::Reader> &squares) {
     Squares::Builder sq_obj = msg.initRoot<Squares>();
     ::capnp::List<Square>::Builder people = sq_obj.initPeople(squares.size());
     
@@ -73,7 +71,7 @@ kj::ArrayPtr<const char> create_squares(::capnp::MallocMessageBuilder &msg, cons
     return message_to_vector(msg);
 }
 
-kj::ArrayPtr<const char> create_input(::capnp::MallocMessageBuilder &msg, Input::Type::Which type, const InputType &value) {
+std::vector<uint8_t> create_input(::capnp::MallocMessageBuilder &msg, Input::Type::Which type, const InputType &value) {
     Input::Builder input = msg.initRoot<Input>();
     auto val {input.getType()};
 
@@ -91,7 +89,7 @@ kj::ArrayPtr<const char> create_input(::capnp::MallocMessageBuilder &msg, Input:
     return message_to_vector(msg);
 }
 
-kj::ArrayPtr<const char> create_event(::capnp::MallocMessageBuilder &msg, Event::Type::Which type, const EventType &value) {
+std::vector<uint8_t> create_event(::capnp::MallocMessageBuilder &msg, Event::Type::Which type, const EventType &value) {
     Event::Builder event = msg.initRoot<Event>();
     auto val {event.getType()};
     switch (type) {
@@ -111,7 +109,7 @@ kj::ArrayPtr<const char> create_event(::capnp::MallocMessageBuilder &msg, Event:
     return message_to_vector(msg);
 }
 
-kj::ArrayPtr<const char> create_squares_message_to_client(::capnp::MallocMessageBuilder &msg, const std::vector<Square::Builder> &sqs, double timestamp) {
+std::vector<uint8_t> create_squares_message_to_client(::capnp::MallocMessageBuilder &msg, const std::vector<Square::Builder> &sqs, double timestamp) {
     MessageToClient::Builder builder = msg.initRoot<MessageToClient>();
     auto val {builder.getData()};
 
@@ -132,7 +130,7 @@ kj::ArrayPtr<const char> create_squares_message_to_client(::capnp::MallocMessage
     return message_to_vector(msg);
 }
 
-kj::ArrayPtr<const char> create_event_message_to_client(::capnp::MallocMessageBuilder &msg, const Event::Type::Which type, double timestamp, std::string error) {
+std::vector<uint8_t> create_event_message_to_client(::capnp::MallocMessageBuilder &msg, const Event::Type::Which type, double timestamp, std::string error) {
     MessageToClient::Builder builder = msg.initRoot<MessageToClient>();
     auto val {builder.getData()};
 

@@ -8,9 +8,10 @@
 #include "Network.h"
 #include <mutex>
 #include <thread>
+#include "Serialization.h"
 
 std::mutex m;
-void continuously_update_squares(std::vector<SDL_Rect> *squares, Network *net);
+void continuously_update_squares(const std::vector<uint8_t> &squares);
 
 struct AppData {
     std::vector<SDL_Rect> squares;
@@ -21,10 +22,10 @@ struct AppData {
     SDL_Rect sq;
     std::thread thread;
 
-    AppData(SDL_Window *wid, SDL_Renderer *rend, std::string server, std::string port)
+    AppData(SDL_Window *wid, SDL_Renderer *rend, std::string server, int port)
         : squares {}, window {wid}, renderer {rend},
-        last_tick {SDL_GetTicks()}, net {server, port}, sq {net.receive_square()},
-        thread {continuously_update_squares, &squares, &net} {
+        last_tick {SDL_GetTicks()}, net {server, port}, sq {-1, -1, -1, -1},
+        thread {std::bind(&Network::run, &net, continuously_update_squares), } {
         std::cout << "squasqe: " << sq.x << ", " << sq.y
             << "  " << sq.w << ", " << sq.h << std::endl;
         thread.detach();
@@ -45,12 +46,39 @@ void draw_square(const Square::Reader &sq, SDL_Renderer *renderer) {
     return draw_square(r, renderer);
 }
 
-void continuously_update_squares(std::vector<SDL_Rect> *squares, Network *net) {
-    while (true) {
-        auto vec = net->receive_squares();
-        m.lock();
-        *squares = vec;
-        m.unlock();
+void continuously_update_squares(const std::vector<uint8_t> &message_from_server) {
+    ::capnp::FlatArrayMessageReader reader {get_message_reader(message_from_server)};
+    
+    auto msg {get_message_to_client(reader)};
+    auto time_now {std::chrono::system_clock::now().time_since_epoch().count()};
+
+    // std::cout << "Latency: " << time_now - msg.getTimestamp() << std::endl;
+
+    auto data {msg.getData()};
+    switch (data.which()) {
+        case MessageToClient::Data::EVENT: {
+            auto event {data.getEvent().getType()};
+            switch (event.which()) {
+                case Event::Type::CONNECT:
+                    std::cout << "Someone joined" << std::endl;
+                    break;
+                case Event::Type::DISCONNECT:
+                    std::cout << "Someone left" << std::endl;
+                    break;
+                case Event::Type::ERROR:
+                    std::cerr << "An error occurred" << std::endl;
+                    std::cerr << event.getError().cStr() << std::endl;
+                    break;
+                case Event::Type::UNSET:
+                    std::cerr << "The event type isn't supposed to be unset!!!" << std::endl;
+            }
+            break;
+        }
+        case MessageToClient::Data::SQUARES: {
+            m.lock();
+
+            m.unlock();
+        }
     }
 }
 
@@ -75,7 +103,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 
     std::cout << argv[0] << std::endl;
     std::string server {argv[1]};
-    auto port {argv[2]};
+    auto port {std::stoi(argv[2])};
     std::cout << server << std::endl;
     std::cout << port << std::endl;
     
@@ -94,26 +122,25 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
     if (event->type == SDL_EVENT_KEY_DOWN) {
         int &y {ad.sq.y};
         int &x {ad.sq.x};
+        InputType inp;
         if (event->key.key == SDLK_DOWN) {
             y++;
+            inp.keypress = Input::KeyboardInput::DOWN;
         } else if (event->key.key == SDLK_UP) {
             y--;
+            inp.keypress = Input::KeyboardInput::UP;
         } else if (event->key.key == SDLK_RIGHT) {
             x++;
+            inp.keypress = Input::KeyboardInput::RIGHT;
         } else if (event->key.key == SDLK_LEFT) {
             x--;
+            inp.keypress = Input::KeyboardInput::LEFT;
+        } else {
+            return SDL_APP_CONTINUE;
         }
         ::capnp::MallocMessageBuilder message;
-        Square::Builder new_sq = message.initRoot<Square>();
-        new_sq.setX(x);
-        new_sq.setY(y);
-        new_sq.setHeight(ad.sq.h);
-        new_sq.setWidth(ad.sq.w);
+        auto data {create_input(message, Input::Type::Which::KEYPRESS, inp)};
 
-        kj::Array<capnp::word> dataArr = capnp::messageToFlatArray(message);
-        kj::ArrayPtr<kj::byte> bytes = dataArr.asBytes();
-
-        std::vector<uint8_t> data(bytes.begin(), bytes.end());
         ad.net.send_data(data);
     }
 

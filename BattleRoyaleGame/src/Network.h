@@ -18,9 +18,9 @@ private:
     static Network *callback_instance;
 public:
     Network(std::string server, int port);
-    void run(std::function<void(std::vector<uint8_t>)> data_func);
+    void run(std::function<void(const std::vector<uint8_t>&)> data_func);
 
-    void poll_incoming_messages(std::function<void(std::vector<uint8_t>)> data_func);
+    void poll_incoming_messages(std::function<void(const std::vector<uint8_t>&)> data_func);
     void poll_connection_state_changes();
 
     void on_connection_status_changed(SteamNetConnectionStatusChangedCallback_t *info);
@@ -28,9 +28,6 @@ public:
 
     inline bool connected() const;
 
-    size_t send_data(const std::vector<uint8_t> &data);
-    std::vector<uint8_t> receive_data(int ammount_data = max_message_len);
-    SDL_Rect receive_square();
-    std::vector<SDL_Rect> receive_squares();
+    void send_data(const std::vector<uint8_t> &data);
 };
 

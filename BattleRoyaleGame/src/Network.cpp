@@ -1,14 +1,18 @@
 #include "Network.h"
 #include <iostream>
 #include <fstream>
+#include <assert.h>
 
-Network::Network(std::string server, int port) : server {}, port {port} {
+Network::Network(std::string server, int port)
+    : server {}, port {port}, connection {k_HSteamNetConnection_Invalid},
+    steam_networking_sockets {nullptr}
+{
     this->server.Clear();
     this->server.ParseString(server.c_str());
     this->server.m_port = port;
 }
 
-void Network::run(std::function<void(std::vector<uint8_t>)> data_func) {
+void Network::run(std::function<void(const std::vector<uint8_t>&)> data_func) {
     steam_networking_sockets = SteamNetworkingSockets();
     char sz_addr[SteamNetworkingIPAddr::k_cchMaxString];
     server.ToString(sz_addr, sizeof(sz_addr), true);
@@ -27,7 +31,7 @@ void Network::run(std::function<void(std::vector<uint8_t>)> data_func) {
     }
 }
 
-void Network::poll_incoming_messages(std::function<void(std::vector<uint8_t>)> data_func) {
+void Network::poll_incoming_messages(std::function<void(const std::vector<uint8_t>&)> data_func) {
     while (true) {
         ISteamNetworkingMessage *msg {nullptr};
         int num_msgs {steam_networking_sockets->ReceiveMessagesOnConnection(connection, &msg, 1)};
@@ -90,31 +94,10 @@ inline bool Network::connected() const {
 
 Network *Network::callback_instance = nullptr;
 
-size_t Network::send_data(const std::vector<uint8_t> &data) {
-    size_t len = data.size();
-    return asio::write(socket, asio::buffer(data, len));
+void Network::send_data(const std::vector<uint8_t> &data) {
+    auto result = steam_networking_sockets->SendMessageToConnection(connection, data.data(), data.size(), k_nSteamNetworkingSend_Reliable, nullptr);
+    assert(result == k_EResultOK);
+    if (result != k_EResultOK)
+        std::cerr << "Failed to send data, error code: " << result << std::endl;
 }
 
-std::vector<uint8_t> Network::receive_data(int ammount_data) {
-    std::vector<uint8_t> data;
-    data.resize(ammount_data);
-    asio::error_code error;
-    size_t len = asio::read(socket, asio::buffer(data, ammount_data), error);
-    std::cout << "Read " << len << " bytes of data from server" << std::endl;
-    std::cout << "Error code: " << error << std::endl;
-
-    std::ofstream f {"C:/Users/Atharv/source/repos/BattleRoyaleGame/BattleRoyaleGame/src/client/f.bin"};
-    for (char c : data)
-        f << c;
-    f.close();
-
-    return data;
-}
-
-SDL_Rect Network::receive_square() {
-    auto sq_data {receive_data()};
-}
-
-std::vector<SDL_Rect> Network::receive_squares() {
-    return vec;
-}

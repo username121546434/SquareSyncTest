@@ -135,7 +135,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)ext/GameNetworkingSockets/include;$(SolutionDir)ext\SDL3\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)ext\Capnp\Debug\include\;$(SolutionDir)Serialization\;$(SolutionDir)ext/GameNetworkingSockets/include;$(SolutionDir)ext\SDL3\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -170,6 +170,11 @@
   <ItemGroup>
     <ClCompile Include="src\Network.cpp" />
     <ClCompile Include="src\Square.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Serialization\Serialization.vcxproj">
+      <Project>{88de329b-3bd3-472a-9aaf-df95f7d9dd17}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -3,6 +3,8 @@
 #include <assert.h>
 #include <chrono>
 
+constexpr short sleep_time {10};
+
 size_t Server::players_connected = 0;
 Server *Server::instance = nullptr;
 
@@ -18,7 +20,8 @@ void Server::run(int port) {
     orphanage = msg_for_orphanage.getOrphanage();
     
     server_addr.Clear();
-    server_addr.m_port = port;
+    server_addr.SetIPv6LocalHost(port);
+    std::cout << "server is localhost: " << server_addr.IsLocalHost() << std::endl;
 
     SteamNetworkingConfigValue_t opt;
     opt.SetPtr(k_ESteamNetworkingConfig_Callback_ConnectionStatusChanged, (void *)SteamNetConnectionStatusChangedCallback);
@@ -37,7 +40,7 @@ void Server::run(int port) {
     while (!quit) {
         poll_incoming_messages();
         PollConnectionStateChanges();
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time));
     }
 
     std::cout << "Closing all connections..." << std::endl;
@@ -64,7 +67,8 @@ void Server::poll_incoming_messages() {
         for (int i {0}; i < incoming_msg->m_cbSize; i++)
             data.push_back(static_cast<uint8_t*>(incoming_msg->m_pData)[i]);
         
-        Input::Reader input = get_input(data);
+        ::capnp::FlatArrayMessageReader reader {get_message_reader(data)};
+        Input::Reader input = get_input(reader);
         handle_player_input(input, incoming_msg->m_conn);
 
         incoming_msg->Release();
@@ -157,6 +161,7 @@ void Server::handle_player_input(Input::Reader input, HSteamNetConnection player
                     sq.setX(sq.getX() - 1);
                     break;
             }
+            send_appstate_update();
             break;
         case Input::Type::Which::DISCONNECT_REQUEST:
             std::cout << "Someone sent a disconnect request" << std::endl;

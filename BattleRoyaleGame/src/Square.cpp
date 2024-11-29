@@ -11,7 +11,7 @@
 #include "Serialization.h"
 
 std::mutex m;
-void continuously_update_squares(const std::vector<uint8_t> &squares);
+void continuously_update_squares(const std::vector<uint8_t> &message_from_server, std::vector<SDL_Rect> *sqs);
 
 struct AppData {
     std::vector<SDL_Rect> squares;
@@ -19,34 +19,18 @@ struct AppData {
     SDL_Renderer *renderer;
     uint64_t last_tick;
     Network net;
-    SDL_Rect sq;
     std::thread thread;
 
     AppData(SDL_Window *wid, SDL_Renderer *rend, std::string server, int port)
         : squares {}, window {wid}, renderer {rend},
-        last_tick {SDL_GetTicks()}, net {server, port}, sq {-1, -1, -1, -1},
-        thread {std::bind(&Network::run, &net, continuously_update_squares), } {
-        std::cout << "squasqe: " << sq.x << ", " << sq.y
-            << "  " << sq.w << ", " << sq.h << std::endl;
+        last_tick {SDL_GetTicks()}, net {server, port},
+        thread {std::bind(&Network::run, &net, [this](const std::vector<uint8_t> &data) {return continuously_update_squares(data, &this->squares); })}
+    {
         thread.detach();
     };
 };
 
-void draw_square(const SDL_Rect &sq, SDL_Renderer *renderer) {
-    // std::cout << "dsqawing squasqe: " << sq.x << ", " << sq.y
-    //     << "  " << sq.w << ", " << sq.h << std::endl;
-    SDL_FRect fr;
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 1);
-    SDL_RectToFRect(&sq, &fr);
-    SDL_RenderFillRect(renderer, &fr);
-}
-
-void draw_square(const Square::Reader &sq, SDL_Renderer *renderer) {
-    SDL_Rect r {sq.getX(), sq.getY(), sq.getWidth(), sq.getHeight()};
-    return draw_square(r, renderer);
-}
-
-void continuously_update_squares(const std::vector<uint8_t> &message_from_server) {
+void continuously_update_squares(const std::vector<uint8_t> &message_from_server, std::vector<SDL_Rect> *sqs) {
     ::capnp::FlatArrayMessageReader reader {get_message_reader(message_from_server)};
     
     auto msg {get_message_to_client(reader)};
@@ -75,11 +59,35 @@ void continuously_update_squares(const std::vector<uint8_t> &message_from_server
             break;
         }
         case MessageToClient::Data::SQUARES: {
+            auto squares {data.getSquares().getPeople()};
             m.lock();
-
+            sqs->clear();
+            for (auto it {squares.begin()}; it != squares.end(); it++) {
+                auto sq {*it};
+                SDL_Rect x {
+                    static_cast<int>(sq.getX()), static_cast<int>(sq.getY()),
+                    static_cast<int>(sq.getWidth()), static_cast<int>(sq.getHeight())
+                };
+                sqs->push_back(x);
+            }
             m.unlock();
         }
     }
+}
+
+
+void draw_square(const SDL_Rect &sq, SDL_Renderer *renderer) {
+    // std::cout << "dsqawing squasqe: " << sq.x << ", " << sq.y
+    //     << "  " << sq.w << ", " << sq.h << std::endl;
+    SDL_FRect fr;
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 1);
+    SDL_RectToFRect(&sq, &fr);
+    SDL_RenderFillRect(renderer, &fr);
+}
+
+void draw_square(const Square::Reader &sq, SDL_Renderer *renderer) {
+    SDL_Rect r {sq.getX(), sq.getY(), sq.getWidth(), sq.getHeight()};
+    return draw_square(r, renderer);
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
@@ -120,20 +128,14 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
     AppData &ad {*static_cast<AppData *>(appstate)};
     
     if (event->type == SDL_EVENT_KEY_DOWN) {
-        int &y {ad.sq.y};
-        int &x {ad.sq.x};
         InputType inp;
         if (event->key.key == SDLK_DOWN) {
-            y++;
             inp.keypress = Input::KeyboardInput::DOWN;
         } else if (event->key.key == SDLK_UP) {
-            y--;
             inp.keypress = Input::KeyboardInput::UP;
         } else if (event->key.key == SDLK_RIGHT) {
-            x++;
             inp.keypress = Input::KeyboardInput::RIGHT;
         } else if (event->key.key == SDLK_LEFT) {
-            x--;
             inp.keypress = Input::KeyboardInput::LEFT;
         } else {
             return SDL_APP_CONTINUE;
@@ -153,7 +155,6 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     SDL_SetRenderDrawColor(ad.renderer, 0, 0, 0, 255);
     SDL_RenderClear(ad.renderer);
 
-    draw_square(ad.sq, ad.renderer);
     m.lock();
     const auto &squares {ad.squares};
     for (const auto &s : squares) {
@@ -167,5 +168,8 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 }
 
 void SDL_AppQuit(void *appstate, SDL_AppResult result) {
+    AppData &ad {*static_cast<AppData *>(appstate)};
+    ad.net.quit = true;
+	GameNetworkingSockets_Kill();
 }
 

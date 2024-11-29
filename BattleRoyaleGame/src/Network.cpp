@@ -2,14 +2,19 @@
 #include <iostream>
 #include <fstream>
 #include <assert.h>
+#include <thread>
+#include <chrono>
+
+constexpr short sleep_time {10};
 
 Network::Network(std::string server, int port)
     : server {}, port {port}, connection {k_HSteamNetConnection_Invalid},
-    steam_networking_sockets {nullptr}
+    steam_networking_sockets {nullptr}, quit {false}
 {
     this->server.Clear();
-    this->server.ParseString(server.c_str());
-    this->server.m_port = port;
+    //this->server.ParseString(server.c_str());
+    //this->server.m_port = port;
+    this->server.SetIPv6LocalHost(port);
 }
 
 void Network::run(std::function<void(const std::vector<uint8_t>&)> data_func) {
@@ -25,20 +30,25 @@ void Network::run(std::function<void(const std::vector<uint8_t>&)> data_func) {
         return;
     }
 
-    while (true) {
+    while (!quit) {
         poll_incoming_messages(data_func);
         poll_connection_state_changes();
+        std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time));
     }
+
+    std::cout << "Closing connection..." << std::endl;
+    steam_networking_sockets->CloseConnection(connection, 0, "Bye", true);
 }
 
 void Network::poll_incoming_messages(std::function<void(const std::vector<uint8_t>&)> data_func) {
-    while (true) {
+    while (!quit) {
         ISteamNetworkingMessage *msg {nullptr};
         int num_msgs {steam_networking_sockets->ReceiveMessagesOnConnection(connection, &msg, 1)};
         if (num_msgs == 0)
             break;
         if (num_msgs < 0) {
             std::cerr << "Error checking for messages" << std::endl;
+            std::cerr << num_msgs << std::endl;
             break;
         }
 

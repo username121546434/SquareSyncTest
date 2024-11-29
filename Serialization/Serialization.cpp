@@ -39,7 +39,8 @@ MessageToClient::Reader get_message_to_client(::capnp::FlatArrayMessageReader &m
 }
 
 std::vector<uint8_t> message_to_vector(::capnp::MallocMessageBuilder &msg) {
-    auto bytes {capnp::messageToFlatArray(msg).asBytes()};
+    auto flat_array {capnp::messageToFlatArray(msg)};
+    auto bytes {flat_array.asBytes()};
 
     std::vector<uint8_t> data(bytes.begin(), bytes.end());
     return data;

@@ -17,6 +17,7 @@ private:
     int port;
     static Network *callback_instance;
 public:
+    bool quit;
     Network(std::string server, int port);
     void run(std::function<void(const std::vector<uint8_t>&)> data_func);
 

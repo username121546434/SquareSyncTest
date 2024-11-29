@@ -3,6 +3,7 @@
 #include <thread>
 #include <chrono>
 #include <steam/steamnetworkingsockets.h>
+#include <steam/isteamnetworkingutils.h>
 #include "Server.h"
 
 bool quit = false;

@@ -7,17 +7,18 @@
 union InputType {
     bool unset;
     Input::KeyboardInput keypress;
-    std::string disconnect_request;
+    char *disconnect_request;
 
-    InputType() { new(&disconnect_request) std::string(); } // Placement new for std::string
-    ~InputType() { disconnect_request.~basic_string(); } // Explicit destructor call
+    InputType() { disconnect_request = nullptr; } // Placement new for std::string
 };
 
 union EventType {
     bool unset;
     bool disconnect;
     bool connect;
-    std::string error;
+    char *error;
+    
+    EventType() { error = nullptr; } // Placement new for std::string
 };
 
 union MessageToClientType {
@@ -25,7 +26,7 @@ union MessageToClientType {
     Event::Builder *event;
 };
 
-inline ::capnp::FlatArrayMessageReader get_message_reader(const std::vector<uint8_t> &data);
+::capnp::FlatArrayMessageReader get_message_reader(const std::vector<uint8_t> &data);
 Square::Reader get_square(::capnp::FlatArrayMessageReader &msg);
 Squares::Reader get_squares(::capnp::FlatArrayMessageReader &msg);
 Input::Reader get_input(::capnp::FlatArrayMessageReader &msg);

@@ -1,7 +1,7 @@
 # BattleRoyaleGame (not an actual battle royale game)
 
 This is a prototype for a 2D batlle royale game I am probably going to make sometime in the future.
-See building.md if you want instructions for how to build and run this project
+See [building.md](building.md) if you want instructions for how to build and run this project
 
 Here is a demo video below:
 

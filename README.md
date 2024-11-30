@@ -5,3 +5,4 @@ See [building.md](building.md) if you want instructions for how to build and run
 
 Here is a demo video below:
 
+https://github.com/user-attachments/assets/6c03aee6-0814-4b0f-908b-604ca9b965dd
